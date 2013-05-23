@@ -9,7 +9,7 @@
   },
   "repository": "",
   "author": "",
-  "license": "BSD",
+  "license": "MIT",
   "dependencies": {
     "multilevel": "~4.0.2",
     "event-stream": "~3.0.14",
