@@ -2,7 +2,7 @@
 ![Loqui](/loqui.png)
 
 # NAME
-loqui-client(3)
+loqui-client(1), loqui-client(3)
 
 # SYNOPSIS
 A modern application logger.
@@ -38,84 +38,112 @@ logging level does not include `debug`. No-ops incur unnecessary
 and removed when no longer needed. Log levels are an anti-pattern, they conflate
 debugging, profiling and application logging.
 
-# EXAMPLES
-Logged data can be queued until the number of logging operations equals
-`queueSize`. When they are streamed to the server the queue is flushed.
-When an error is logged, it is written to the server immediately.
-
 ## Setup
-Create a client and establish a connection to the logging server. The
-`createClient` method yields a socket that is connected to the server.
-It accepts an object literal with various configuration options.
+```bash
+$npm install loqui-client loqui-server
+```
+
+1. Add the module to your program. Logged data can be queued until the number of 
+logging operations equals `queueSize`. When they are streamed to disk the queue 
+is flushed. When an error is logged, it is written to the disk immediately.
 
 ```js
 var loqui = require('loqui-client');
-
 var logger = loqui.createClient({ queueSize: 10 });
 ```
 
-## Logging functions
-The logger object is a writable stream and has all the logging functions
-attached to it.
+2. Define list of servers that your client will connect to in a json file
+```json
+[
+  { "port": 9960, "host": "127.0.0.2", },
+  { "port": 9968, "host": "127.0.0.1", },
+  { "port": 9020, "host": "127.0.0.3", },
+  { "port": 9967, "host": "127.0.0.1", }
+]
+```
 
-## Simple logging and key/value logging for later lookup.
-Queues a log to be sent to the server and written locally to the cache.
+Start the client to establish a connection to an available [`loqui-server(1)`][0].
+```bash
+$loqui-client --servers ./servers.json
+```
+
+3. Start the server before or after you start the client. If the server goes 
+down the client will attempt to reconnect to it. If it cant, it will attempt to 
+connect to others.
+```bash
+$loqui-server --port 9099
+```
+
+## Logging functions
+Logs are key/value pairs that are designed for later lookup.
 
 ```js
-logger.log('somevalue'); // Logs an entry with no key.
-logger.log('somekey', 'somevalue'); // Logs an entry with a key.
+logger.log('somevalue');            // Logs an entry with a unique key (uuid v4).
+logger.log('somekey', 'somevalue'); // Logs an entry with a specific key.
 ```
 
 ## Formatting
-formatting is handled just like console.log. the first argument can still be a 
-key that can be queried on the server from another service.
+Works like console.log. If the first argument has tokens, it will be considered
+a value. The key for the following log would be a uuid that might look something
+like this `56f4c507-5cd9-430b-89dd-7b2dfa1075d2`.
 
 ```js
 logger.log('Felix has %d pet %s', 20, 'squirrels');
+```
+
+Here the key is `Issac` and the value will be `1 pet cat`.
+```js
 logger.log('Isaac', '%d pet %s', 1, 'cat');
 ```
 
+# CLI OPTIONS
+The `loqui-client` executable accepts the following command line parameters.
+
+### `--servers`
+A JSON file containing an array of objects. Each object contains a port and a
+host.
+```json
+[
+  { "port": 9960, "host": "127.0.0.2", }, 
+  { "port": 9968, "host": "127.0.0.1", }
+]
+```
+
+### `--reconnectTime`
+Milliseconds to wait before attempting to reconnect.
+
+
 # API
 
-## loqui.createClient(options)
-Returns a logging client and accepts an object literal for configuration values. 
-All of the following options are optional.
+## loqui.createClient([options])
+Returns an instance of the logging client and accepts an object literal for
+configuration values.
 
-#### `{ queueSize: <Number> }`
-The maximum number of logging operations to be queued before they are sent to 
-the server or committed to the cache.
+### [options] `{ queueSize: <Number> }`
+The maximum number of logging operations to be queued before they are streamed
+to the disk.
 
-#### `{ throttle: <Number> }`
+### [options] `{ throttle: <Number> }`
 The maximum number of logging operations that can be executed within a given 
 amount of time. If a throttle is provided, then a window must be provided.
 
-#### `{ window: <Number> }`
+### [options] `{ window: <Number> }`
 The window of time (in milliseconds) that logging operations may occur.
 
-#### `{ servers: <Object> }`
-An array that contains a list of  servers. Each array in the array should 
-contain a port and host address.
-
-#### `{ reconnectTime: <Number> }`
-Milliseconds to wait before attempting to reconnect.
-
-#### `callback`
-Called once the connection to the server has closed.
-
 ## logger.log([key], data)
-A regular priority log, should be queued for a batch send to the server.
+A regular priority log, should be queued for a batch streamed to the disk.
 
 #### `key`
-An optional key that can be used to look up the log data with `client.get(key)`.
+An optional key that can be used to look up the log data.
 
 #### `data`
 A valid JSON value.
 
 ## logger.error([key], data)
-A high priority log, should be sent to the server immediately.
+A high priority log, should be streamed to the disk immediately.
 
 #### `key`
-An optional key that can be used to look up the log data with `client.get(key)`.
+An optional key that can be used to look up the log data.
 
 #### `data`
 A valid JSON value.
@@ -130,8 +158,19 @@ be used as a base from which the increment from.
 A positive or negative value for which to increment or decrement the existing 
 value's `counter` member.
 
+## logger.extend(key, value)
+
+#### `key`
+The key will be looked up on the server and the value that is retrieved will
+be used as a base from which the extend from.
+
+#### `value`
+A value that should be extended. For instance adding `{ a: 1 }` to an existing
+value of `{ b: 2 }` would produce `{ a: 1, b: 2 }`.
+
+
 # SEE ALSO
-[`loqui-server(3)`][0]
+[`loqui-server(1)`][0]
 
 [0]:https://github.com/dowjones/loqui-server
 [1]:http://dtrace.org/blogs/about/
