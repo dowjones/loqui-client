@@ -20,6 +20,8 @@ var processedData = false
 
 client.on('connect', function(connection) {
 
+  console.log('OK')
+
   var db = multilevel.client()
   db.pipe(connection).pipe(db)
 
@@ -28,7 +30,7 @@ client.on('connect', function(connection) {
     db[data.type](data.key, data.value, function(err) {
 
       if (err) {
-        console.log('loquid:', err)
+        console.log(err)
       }
       else {
 
@@ -38,7 +40,7 @@ client.on('connect', function(connection) {
 
   function onEnd() {
     if (processedData) {
-      fs.writeFileSync(location, '\n', { flags: 'w' })
+      fs.writeFileSync(location, '', { flags: 'w' })
     }
   }
 
@@ -70,7 +72,7 @@ client.on('connect', function(connection) {
       })
   }
 
-  fs.appendFileSync(location, '\n\n')
+  fs.appendFileSync(location, '\n')
   fs.watch(location, readlogs)
   readlogs()
 })

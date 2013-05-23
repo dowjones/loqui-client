@@ -18,6 +18,7 @@ exports.createClient = function(opts) {
 
   var location = opts.logfile || path.join(process.cwd(), 'logs.json')
   var logfile = fs.createWriteStream(location, { flags: 'a' })
+  var local = opts.local || argv.local
 
   opts.queueSize = opts.queueSize || 1
 
@@ -27,14 +28,14 @@ exports.createClient = function(opts) {
   var window = opts.window
   var batch = []
   var batchIndexes = {}
-  
+
   function writeBatch() {
 
     var temp = []
     temp = deepmerge(batch, temp)
     batch.length = 0
 
-    if (argv.local) {
+    if (local) {
       temp.forEach(function(log) {
         console.log(log)
       })
