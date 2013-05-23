@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+
+var fs = require('fs')
+var path = require('path')
+var net = require('net')
+
+var EventEmitter = require('events').EventEmitter
+
+var restream = require('restream')
+var multilevel = require('multilevel')
+var es = require('event-stream')
+
+var argv = require('optimist').argv
+
+var ee = new EventEmitter
+var client = restream.connect(argv)
+var location = argv.location || path.join(process.cwd(), 'logs.json')
+
+var processedData = false
+
+client.on('connect', function(connection) {
+
+  var db = multilevel.client()
+  db.pipe(connection).pipe(db)
+
+  function onData(data) {
+
+    db[data.type](data.key, data.value, function(err) {
+
+      if (err) {
+        console.log('loquid:', err)
+      }
+      else {
+
+      }
+    })
+  }
+
+  function onEnd() {
+    if (processedData) {
+      fs.writeFileSync(location, '\n', { flags: 'w' })
+    }
+  }
+
+  ee.removeListener('data', onData)
+  ee.removeListener('end', onEnd)
+
+  ee.on('data', onData)
+  ee.on('end', onEnd)
+
+  function readlogs() {
+    processedData = false
+
+    fs.createReadStream(location)
+      .pipe(es.split())
+      .pipe(es.parse())
+      .on('data', function(data) {
+        processedData = true
+        if (Array.isArray(data)) {
+          data.forEach(function(op) {
+            ee.emit('data', op)
+          })
+        }
+        else {
+          ee.emit('data', data)
+        }
+      })
+      .on('end', function() {
+        ee.emit('end')
+      })
+  }
+
+  fs.appendFileSync(location, '\n\n')
+  fs.watch(location, readlogs)
+  readlogs()
+})
