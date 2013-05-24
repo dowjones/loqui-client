@@ -2,7 +2,9 @@
 // var assert = require('assert')
 // var path = require('path')
 // var fs = require('fs')
+// var level = require('level')
 // var spawn = require('child_process').spawn
+// var leveldown = require('leveldown')
 
 // var loqui = require('../index')
 
@@ -16,214 +18,313 @@
 //   return spawn(p, args && args.split(' ') || [])
 // }
 
-// describe('A client should observe log data', function() {
+// var levelopts = {
+//   valueEncoding: 'json', 
+//   keyEncoding: 'json', 
+//   encoding: 'json'
+// }
+
+// var location = __dirname + '/fixtures/db'
+
+// describe('A client', function() {
+
+//   // it(
+//   //   'should be able to reconnect to a server that is not yet running',
+//   //   function(done) {
+
+//   //     var client = loqui.createClient()
+//   //     var sc = spawnClient('--reconnectTime 100')
+//   //     var donetest = false
+
+//   //     client.log('testvalue')
+
+//   //     setTimeout(function() {
+
+//   //       var ss = spawnServer()
+
+//   //       sc.stdout.on('data', function (data) {
+//   //         if (data.toString() === 'OK\n' && !donetest) {
+//   //           donetest = true
+//   //           setTimeout(function() {
+//   //             ss.kill('SIGINT')
+//   //             sc.kill('SIGINT')
+//   //             done()
+//   //           }, 128)
+//   //         }
+//   //       })
+
+//   //     }, 1024)
+//   //   }
+//   // )
+
+//   // it(
+//   //   'should log locally even when connected to a server',
+//   //   function(done) {
+
+//   //     var client = loqui.createClient({ local: true })
+//   //     var sc = spawnClient()
+//   //     var ss
+//   //     var l = console.log
+//   //     var donetest = false
+
+//   //     setTimeout(function() {
+
+//   //       console.log = function() {
+//   //         if (!donetest) {
+//   //           setTimeout(function() {
+//   //             donetest = true
+//   //             fs.unlink('./logs.json')
+//   //             sc.kill('SIGINT')
+//   //             ss.kill('SIGINT')
+//   //             done()
+//   //           }, 128)
+//   //         } 
+//   //         l.apply(console, arguments)
+//   //       }
+
+//   //       ss = spawnServer()
+//   //       client.log('testvalue')
+//   //     }, 1024)
+//   //   }
+//   // )
+
+//   // it(
+//   //   'should be able to connect to an alternate server given a list of servers',
+//   //   function(done) {
+
+//   //     var testvalue = 'testvalue'
+//   //     var testdone = false
+
+//   //     var client = loqui.createClient()
+//   //     var ss = spawnServer('--port 9099')
+//   //     var sc = spawnClient('--servers ./test/fixtures/servers.json --reconnectTime 10 --connectTimeout 10')
+
+//   //     sc.stdout.on('data', function (data) {
+//   //       if (data.toString() === 'OK\n' && !testdone) {
+//   //         testdone = true
+//   //         ss.kill('SIGINT')
+//   //         sc.kill('SIGINT')
+//   //         done()
+//   //       }
+//   //     })
+
+//   //     client.log(testvalue)
+//   //   }
+//   // )
 
 //   it(
-//     'should be able to reconnect to a server that is not yet running',
+//     'should be able to receive data',
 //     function(done) {
 
+//       var testdone = false
 //       var client = loqui.createClient()
-//       var sc = spawnClient()
-//       var ss
-
-//       sc.stdout.on('data', function (data) {
-//         if (data.toString() === 'OK\n') {
-//           setTimeout(function() {
-//             ss.kill('SIGINT')
-//             done()            
-//           }, 512)
-//         }
-//       })
+//       var ss = spawnServer('--location ./test/fixtures/db')
+//       var sc = spawnClient('--reconnectTime 100')
+//       client.log('testkey', 'testvalue')
 
 //       setTimeout(function() {
-//         ss = spawnServer()
-//         client.log('testvalue1')
+
+//         ss.kill('SIGINT')
+
+//         setTimeout(function() {
+
+//           if (!testdone) {
+//             testdone = true
+//             level(location, levelopts, function(err, db) {
+
+//               if (err) {
+//                 assert.ok(false, err)
+//               }
+
+//               db.get('testkey', function(err, val) {
+//                 if (err) {
+//                   assert.ok(false, err)
+//                 }
+//                 else {
+//                   db.close()
+//                   leveldown.destroy(location, function(err) {
+//                     if (err) {
+//                       assert.ok(false, err)
+//                     }
+//                     sc.kill('SIGINT')
+//                     done()
+//                   })
+//                 }
+//               })
+//             })
+//           }
+//         }, 512)
 //       }, 1024)
-//     }
-//   )
 
-  // it(
-  //   'should log locally even when connected to a server',
-  //   function(done) {
-
-  //     var client = loqui.createClient({ local: true })
-  //     var sc = spawnClient()
-  //     var ss
-
-  //     var l = console.log
-  //     var donetest = false
-
-  //     console.log = function() {
-  //       if (!donetest) {
-  //         setTimeout(function() {
-  //           donetest = true
-  //           fs.unlink('./logs.json')
-  //           ss.kill('SIGHUP')
-  //           done()
-  //         }, 128)
-  //       } 
-  //       l.apply(console, arguments)
-  //     }
-
-  //     setTimeout(function() {
-  //       ss = spawnServer()
-  //       client.log('testvalue1')
-  //     }, 128)
-  //   }
-  // )
-
-  // it(
-  //   'should be able to connect to an alternate server given a list of servers',
-  //   function(done) {
-
-  //     var testvalue = 'testvalue'
-
-  //     var client = loqui.createClient()
-  //     var ss = spawnServer('--servers .\/fixtures\/servers.json')
-  //     var sc = spawnClient()
-
-  //     ss.stderr.on('data', function(d) {
-  //       console.log(d.toString())
-  //     })
-
-  //     ss.stdout.on('data', function (data) {
-  //       if (data.toString() === 'OK\n') {
-  //         ss.kill('SIGHUP')
-  //         done()
-  //       }
-  //     })
-
-  //     client.log(testvalue)
-  //   }
-  // )
-
-//   it(
-//     'should be able to communicate a log with a generated key',
-//     function(done) {
-
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
-
-//       var testvalue = 'testvalue'
-
-//       server.on('log', function(log) {
-
-//         assert.equal(
-//           log.key.length, 36, 
-//           'A unique key was created'
-//         )
-
-//         server.close()
-//         done()
-//       })
-
-//       client.log(testvalue)
 //     }
 //   )
 
 //   it(
-//     'should be able to communicate a log with a custom key',
+//     'should be able to extend the value associated with a custom key (simple)',
 //     function(done) {
 
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
+//       var testdone = false
+//       var client = loqui.createClient()
+//       var ss = spawnServer('--location ./test/fixtures/db')
+//       var sc = spawnClient('--reconnectTime 10')
+//       client.extend('testkey', { a: 1 })
 
-//       server.on('log', function(log) {
+//       setTimeout(function() {
+//         client.extend('testkey', { b: 2 })
 
-//         assert.equal(
-//           log.key, 'custom1', 
-//           'A unique key was created'
-//         )
+//         setTimeout(function() {
 
-//         server.close()
-//         done()
-//       })
+//           ss.kill('SIGINT')
 
-//       client.log('custom1', 1)
+//           setTimeout(function() {
+
+//             if (!testdone) {
+//               testdone = true
+//               level(location, levelopts, function(err, db) {
+
+//                 if (err) {
+//                   assert.ok(false, err)
+//                 }
+
+//                 db.get('testkey', function(err, record) {
+//                   if (err) {
+//                     assert.ok(false, err)
+//                   }
+//                   else {
+
+//                     console.log(record)
+
+//                     assert.equal(record.value.a, 1, 'correct value')
+//                     assert.equal(record.value.b, 2, 'correct value')
+
+//                     db.close()
+//                     leveldown.destroy(location, function(err) {
+//                       if (err) {
+//                         assert.ok(false, err)
+//                       }
+//                       sc.kill('SIGINT')
+//                       done()
+//                     })
+//                   }
+//                 })
+//               })
+//             }
+
+//           }, 512)
+//         }, 512)
+//       }, 512)
 //     }
 //   )
 
 //   it(
-//     'should be able to update a custom key',
+//     'should be able to extend the value associated with a custom key (complex)',
 //     function(done) {
 
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
+//       var testdone = false
+//       var client = loqui.createClient()
+//       var ss = spawnServer('--location ./test/fixtures/db')
+//       var sc = spawnClient('--reconnectTime 100')
+//       client.log('testkey', { a: 1, b: [{ c: 3, d: { test: 'A' } }]})
 
-//       server.on('log', function(log) {
+//       setTimeout(function() {
+//         client.extend('testkey', { a: 1, b: [{ c: { test: 'B' } }]})
 
-//         assert.equal(log.key, 'custom1', 'A custom key was retrieved')
-//         assert.equal(log.value.value, 2, 'the value was retrieved and is equal')
-//         server.close()
-//         done()
-//       })
+//         setTimeout(function() {
 
-//       client.log('custom1', 2)
+//           ss.kill('SIGINT')
+
+//           setTimeout(function() {
+
+//             if (!testdone) {
+//               testdone = true
+//               level(location, levelopts, function(err, db) {
+
+//                 if (err) {
+//                   assert.ok(false, err)
+//                 }
+
+//                 db.get('testkey', function(err, record) {
+//                   if (err) {
+//                     assert.ok(false, err)
+//                   }
+//                   else {
+
+//                     assert.equal(record.value.a, 1, 'correct value')
+//                     assert.equal(record.value.b[0].c.test, 'B', 'correct value')
+
+//                     db.close()
+//                     leveldown.destroy(location, function(err) {
+//                       if (err) {
+//                         assert.ok(false, err)
+//                       }
+//                       sc.kill('SIGINT')
+//                       done()
+//                     })
+//                   }
+//                 })
+//               })
+//             }
+
+//           }, 512)
+//         }, 512)
+//       }, 512)
 //     }
 //   )
 
-//   it(
-//     'should be able to communicate a log with a object as a value',
-//     function(done) {
-
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
-
-//       server.on('log', function(log) {
-
-//         assert.equal(
-//           log.key, 'object1', 
-//           'A unique key was created'
-//         )
-
-//         assert.equal(
-//           typeof log.value, 'object',
-//           'The value was an object'
-//         )
-
-//         server.close()
-//         done()
-//       })
-
-//       client.log('object1', { counter: 1 })
-//     }
-//   )
-
-//   it(
-//     'should be able to extend a logs value',
-//     function(done) {
-
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
-
-//       server.on('log', function(log) {
-
-//         assert.equal(log.value.value.counter, 1, 'Still has the original value')
-//         assert.equal(log.value.value.extended, true, 'Has an additional member')
-//         server.close()
-//         done()
-//       })
-
-//       client.extend('object1', { extended: true })
-//     }
-//   )
 
 //   it(
 //     'should be able to increment a custom key',
 //     function(done) {
 
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
+//       var testdone = false
+//       var client = loqui.createClient()
+//       var ss = spawnServer('--location ./test/fixtures/db --port 9099')
+//       var sc = spawnClient('--reconnectTime 100')
+//       client.counter('testkey', { counter: 1 })
 
-//       server.on('log', function(log) {
+//       setTimeout(function() {
+//         client.counter('testkey', { counter: 1 })
 
-//         assert.equal(log.key, 'object1', 'A custom key was retrieved')
-//         assert.equal(log.value.value.counter, 2, 'the value was incremented')
-//         server.close()
-//         done()
-//       })
+//         setTimeout(function() {
 
-//       client.counter('object1', { counter: 1 })
+//           ss.kill('SIGINT')
+
+//           setTimeout(function() {
+
+//             if (!testdone) {
+//               testdone = true
+//               level(location, levelopts, function(err, db) {
+
+//                 if (err) {
+//                   assert.ok(false, err)
+//                 }
+
+//                 db.get('testkey', function(err, record) {
+//                   if (err) {
+//                     assert.ok(false, err)
+//                   }
+//                   else {
+
+//                     console.log(record)
+
+//                     assert.equal(record.value.counter, 2, 'correct value')
+
+//                     db.close()
+//                     leveldown.destroy(location, function(err) {
+//                       if (err) {
+//                         assert.ok(false, err)
+//                       }
+//                       sc.kill('SIGINT')
+//                       done()
+//                     })
+//                   }
+//                 })
+//               })
+//             }
+
+//           }, 512)
+//         }, 512)
+//       }, 512)
 //     }
 //   )
 
@@ -231,44 +332,101 @@
 //     'should be able to decrement a custom key',
 //     function(done) {
 
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
+//       var testdone = false
+//       var client = loqui.createClient()
+//       var ss = spawnServer('--location ./test/fixtures/db --port 9099')
+//       var sc = spawnClient('--reconnectTime 100')
+//       client.counter('testkey', { counter: 1 })
 
-//       server.on('log', function(log) {
+//       setTimeout(function() {
+//         client.counter('testkey', { counter: -1 })
 
-//         assert.equal(log.key, 'object1', 'A custom key was retrieved')
-//         assert.equal(log.value.value.counter, 1, 'the value was decremented')
-//         server.close()
-//         done()
-//       })
+//         setTimeout(function() {
 
-//       client.counter('object1', { counter: -1 })
+//           ss.kill('SIGINT')
+
+//           setTimeout(function() {
+
+//             if (!testdone) {
+//               testdone = true
+//               level(location, levelopts, function(err, db) {
+
+//                 if (err) {
+//                   assert.ok(false, err)
+//                 }
+
+//                 db.get('testkey', function(err, record) {
+//                   if (err) {
+//                     assert.ok(false, err)
+//                   }
+//                   else {
+
+//                     console.log(record)
+
+//                     assert.equal(record.value.counter, 0, 'correct value')
+
+//                     db.close()
+//                     leveldown.destroy(location, function(err) {
+//                       if (err) {
+//                         assert.ok(false, err)
+//                       }
+//                       sc.kill('SIGINT')
+//                       done()
+//                     })
+//                   }
+//                 })
+//               })
+//             }
+
+//           }, 512)
+//         }, 512)
+//       }, 512)
 //     }
 //   )
 
-//   it(
-//     'should agree that the number of logs sent was the number of logs received',
+//  it(
+//     'should report the number of logs sent is the same as the number received',
 //     function(done) {
 
-//       var server = loquiServer.createServer()
-//       var client = loquiClient.createClient({ reconnectTime: 128 })
+//       var testdone = false
+//       var count = 0
+//       var total = 1000
+//       var client = loqui.createClient()
+//       var ss = spawnServer('--location ./test/fixtures/db')
+//       var sc = spawnClient('--reconnectTime 10')
 
-//       var inLogs = 0, outLogs = 10
-
-//       server.on('log', function(log) {
-//         ++inLogs
-
-//         if (inLogs === 10) {
-//           server.close()
-//           done()
-//         }
-//       })
-
-//       while(outLogs--) {
-//         client.log('outLog' + outLogs, outLogs)
+//       for(var i = 0; i < total; i++) {
+//         client.log('testkey' + i, 'testvalue' + i)
 //       }
+
+//       setTimeout(function() {
+
+//         ss.kill('SIGINT')
+//         sc.kill('SIGINT')
+
+//         setTimeout(function() {
+
+//           level(location, levelopts, function(err, db) {
+//             db.createReadStream({ keys: false, values: false })
+//             .on('data', function(d) {
+//               count++
+//             })
+//             .on('end', function() {
+
+//               assert.equal(total, count, 'expected number of records')
+
+//               db.close()
+//               leveldown.destroy(location, function(err) {
+//                 if (err) {
+//                   assert.ok(false, err)
+//                 }
+//                 done()
+//               })
+//             })
+//           })
+
+//         }, 512)
+//       }, 1024)
 //     }
 //   )
-
-
-})
+// })

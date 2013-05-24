@@ -13,6 +13,11 @@ var es = require('event-stream')
 var argv = require('optimist').argv
 
 var ee = new EventEmitter
+
+if (argv.servers) {
+  argv.servers = JSON.parse(fs.readFileSync(argv.servers))
+}
+
 var client = restream.connect(argv)
 var location = argv.location || path.join(process.cwd(), 'logs.json')
 
@@ -31,9 +36,6 @@ client.on('connect', function(connection) {
 
       if (err) {
         console.log(err)
-      }
-      else {
-
       }
     })
   }

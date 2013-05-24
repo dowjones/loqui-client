@@ -112,6 +112,9 @@ host.
 ### `--reconnectTime`
 Milliseconds to wait before attempting to reconnect.
 
+### `--connectTimeout`
+How long before calling it quits on a single connection attempt.
+
 
 # API
 

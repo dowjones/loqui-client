@@ -22,10 +22,11 @@ exports.createClient = function(opts) {
 
   opts.queueSize = opts.queueSize || 1
 
-  var hrtime = process.hrtime()
-  var tLastMS = hrtime[0] * 1e3 + hrtime[1] / 1e6
-  var quota = opts.throttle
+  var rate = opts.rate
   var window = opts.window
+  var quota = rate
+  var timeStampMS = Date.now()
+
   var batch = []
   var batchIndexes = {}
 
@@ -40,7 +41,6 @@ exports.createClient = function(opts) {
         console.log(log)
       })
     }
-
     logfile.write(JSON.stringify(temp) + '\n')
   }
 
@@ -53,68 +53,48 @@ exports.createClient = function(opts) {
     var value = { value: obj.value, method: obj.method, origin: origin }
     var record = { type: 'put', key: key, value: value }
 
-    switch (obj.method) {
-
-      case 'log':
-      case 'extend':
-        batch.push(record)
-      ;break
-
-      case 'error':
-        batch.push(record)
-        writeBatch()
-        return
-      ;break
-
-      case 'counter':
-
-        if (!obj.value.counter && opts.onError) {
-          var message = 'decr and incr must contain a counter member'
-          var error = new Error(message)
-          return opts.onError(error)
-        }
-
-        var n = obj.value.counter
-
-        if (batchIndexes[obj.key] && obj.value.method === 'counter') {
-          batch[batchIndexes[obj.key]].value.counter += n
-        }
-        else {
-          batchIndexes[obj.key] = batch.length
-        }
-
-        batch.push(record)
-      ;break
+    if(obj.method === 'log' || obj.method === 'extend') {
+      batch.push(record)
     }
+    else if (obj.method === 'error') {
+      batch.push(record)
+      writeBatch()
+      return
+    }
+    else if (obj.method === 'counter') {
 
-    //
-    // determine if we should send the data or not.
-    //
+      var n = obj.value.counter
 
-    var hrtime = process.hrtime()
-    var tNowMS = hrtime[0] * 1e3 + hrtime[1] / 1e6
-
-    if (quota && window) {
-
-      var tDeltaMS = tNowMS - tLastMS
-
-      tLastMS = tNowMS
-
-      quota += tDeltaMS * (opts.throttle / window)
-
-      if (quota > opts.throttle) {
-        quota = opts.throttle
+      if (batchIndexes[obj.key] && obj.value.method === 'counter') {
+        batch[batchIndexes[obj.key]].value.counter += n
       }
-
-      if (quota < 1.0) {
-        return
-      } 
       else {
-        quota -= 1.0
+        batchIndexes[obj.key] = batch.length
+      }
+
+      batch.push(record)
+    }
+
+    if (typeof rate !== 'undefined' && typeof window !== 'undefined') {
+
+      var current = Date.now()
+      var delta = current - timeStampMS
+
+      timeStampMS = current
+      quota += delta * (rate / window)
+
+      if (quota > rate) {
+        quota = rate
+      }
+      if (quota < 1) {
+        return
+      }
+      else {
+        quota -= 1
       }
     }
 
-    if (batch.length <= opts.queueSize) {
+    if (batch.length === opts.queueSize) {
       writeBatch()
     }
   }
