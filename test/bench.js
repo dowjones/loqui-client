@@ -6,6 +6,7 @@ var winston = require('winston')
 winston.add(winston.transports.File, { filename: 'logs.log' });
 
 var loqui = require('../index').createClient()
+var loquiQ = require('../index').createClient({ queueSize: 2 })
 var log = []
 
 // add tests
@@ -14,6 +15,9 @@ suite.add('Winston', function() {
 })
 .add('Loqui', function() {
   loqui.log('info', 'Hello distributed log files!')
+})
+.add('Loqui-QueueSize-50%', function() {
+  loquiQ.log('info', 'Hello distributed log files!')
 })
 
 // add listeners
