@@ -1,13 +1,15 @@
 
 var Benchmark = require('benchmark')
-var suite = new Benchmark.Suite
+Benchmark.options.minSamples = 40
+var suite = new Benchmark.Suite()
 var fs = require('fs')
 
 var winston = require('winston')
 winston.add(winston.transports.File, { filename: 'log.log' });
+winston.remove(winston.transports.Console);
 
-var loqui = require('../index').createClient({ local: true })
-var loquiQueued = require('../index').createClient({ queueSize: 100, local: true })
+var loqui = require('../index').createClient()
+var loquiQueued = require('../index').createClient({ queueSize: 100 })
 var log = []
 var i1 = 0, i2 = 0, i3 = 0
 
@@ -43,8 +45,8 @@ suite
 .on('complete', function() {
   console.log(log)
   console.log('Fastest is ' + this.filter('fastest').pluck('name'))
-  //fs.unlink('./log.log')
-  //fs.unlink('./log.json')
+  fs.unlink('./log.log')
+  fs.unlink('./log.json')
 })
 // run async
 .run({ 'async': true })

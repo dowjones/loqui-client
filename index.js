@@ -2,6 +2,8 @@ var path = require('path')
 var ip = require('ip')
 var fs = require('fs')
 var deepmerge = require('deepmerge')
+var restream = require('restream')
+var multilevel = require('multilevel')
 var argv = require('optimist').argv
 
 var uuid = require('node-uuid')
@@ -16,9 +18,16 @@ exports.createClient = function(opts) {
 
   opts = opts || {}
 
-  var location = opts.logfile || path.join(process.cwd(), 'logs.json')
-  var logfile = fs.createWriteStream(location, { flags: 'a' })
+  var writecount = 0
+  var failed = false
+  var db
+
   var local = opts.local || argv.local
+  var logfile = argv.logfile || opts.logfile
+
+  if (logfile) {
+    logfile = fs.createWriteStream(logfile, { flags: 'a' })
+  }
 
   opts.queueSize = opts.queueSize || 1
 
@@ -30,18 +39,39 @@ exports.createClient = function(opts) {
   var batch = []
   var batchIndexes = {}
 
+  restream.connect(argv)
+    .on('connect', function(connection) {
+      client.connected = true
+      db = multilevel.client()
+      db.pipe(connection).pipe(db)
+    })
+    .on('fail', function() {
+      failed = true
+    })
+
   function writeBatch() {
 
     var temp = []
     temp = deepmerge(batch, temp)
-    batch.length = 0
 
     if (local) {
       temp.forEach(function(log) {
         console.log(log)
       })
     }
-    logfile.write(JSON.stringify(temp) + '\n')
+    
+    if (client.connected) {
+      batch.length = 0
+      db.batch(temp, function(err) {
+        if (err) {
+          console.log(err)
+        }
+      })
+    }
+    else if (failed || logfile) {
+      logfile.write(JSON.stringify(temp) + '\n')
+      batch.length = 0
+    }
   }
 
   function queue(obj) {
@@ -49,8 +79,15 @@ exports.createClient = function(opts) {
     //
     // prepare the data to be sent
     //
-    var key = client.id ? [client.id, obj.key].join('-') : obj.key
-    var value = { value: obj.value, method: obj.method, origin: origin }
+    var key = client.id ? [client.id, obj.key].join('!') : obj.key
+    
+    var value = {
+      value: obj.value,
+      method: obj.method,
+      origin: origin,
+      timestamp: Date.now()
+    }
+
     var record = { type: 'put', key: key, value: value }
 
     if(obj.method === 'log' || obj.method === 'extend') {
@@ -106,6 +143,8 @@ exports.createClient = function(opts) {
   var client = function(opts) {
     client.id = opts.id || uuid.v4()
   }
+
+  client.connected = false
 
   client.log = client.info = client.warn = function() {
     var obj = format.apply(null, arguments)

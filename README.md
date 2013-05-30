@@ -38,6 +38,32 @@ logging level does not include `debug`. No-ops incur unnecessary
 and removed when no longer needed. Log levels are an anti-pattern, they conflate
 debugging, profiling and application logging.
 
+
+# PERFORMANCE
+Benchmarks are run using [`benchmark.js`][7] and contrasted using the popular 
+logging library `Winston`.
+
+Logging with blocking writes to stdout
+```js
+[ 'Loqui x 962 ops/sec ±3.20% (80 runs sampled)',
+  'Winston x 950 ops/sec ±3.26% (50 runs sampled)',
+  'Loqui-QueueSize x 85,084 ops/sec ±2.73% (81 runs sampled)']
+```
+
+Default settings without writing to `stdout`
+```js
+[ 'Loqui x 91,373 ops/sec ±13.17% (16 runs sampled)',
+ 'Winston x 15,351 ops/sec ±8.69% (52 runs sampled)',
+ 'Loqui-Queued x 291,271 ops/sec ±6.32% (69 runs sampled)' ]
+```
+
+Same as above test but forcing a minimum of 50 samples
+```js
+[ 'Loqui x 50,636 ops/sec ±19.98% (53 runs sampled)',
+ 'Winston x 4,749 ops/sec ±18.67% (76 runs sampled)',
+ 'Loqui-Queued x 137,978 ops/sec ±21.95% (83 runs sampled)' ]
+```
+
 ## Setup
 ```bash
 $npm install loqui-client loqui-server
@@ -170,7 +196,6 @@ be used as a base from which the extend from.
 #### `value`
 A value that should be extended. For instance adding `{ a: 1 }` to an existing
 value of `{ b: 2 }` would produce `{ a: 1, b: 2 }`.
-
 
 # SEE ALSO
 [`loqui-server(1)`][0]

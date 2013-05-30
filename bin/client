@@ -1,80 +1,21 @@
 #!/usr/bin/env node
 
-var fs = require('fs')
-var path = require('path')
-var net = require('net')
-
-var EventEmitter = require('events').EventEmitter
-
-var restream = require('restream')
-var multilevel = require('multilevel')
+var events = require('events')
 var es = require('event-stream')
-
 var argv = require('optimist').argv
+var JSONSelect = require('JSONSelect')
 
-var ee = new EventEmitter
+process.stdin.resume()
 
-if (argv.servers) {
-  argv.servers = JSON.parse(fs.readFileSync(argv.servers))
-}
-
-var client = restream.connect(argv)
-var location = argv.location || path.join(process.cwd(), 'logs.json')
-
-var processedData = false
-
-client.on('connect', function(connection) {
-
-  console.log('OK')
-
-  var db = multilevel.client()
-  db.pipe(connection).pipe(db)
-
-  function onData(data) {
-
-    db[data.type](data.key, data.value, function(err) {
-
-      if (err) {
-        console.log(err)
+process.stdin
+  .pipe(es.split())
+  .pipe(es.parse())
+  .on('data', function(data) {
+    argv._.forEach(function(selector) {
+      var value = JSONSelect.match(selector, data)
+      if (value) {
+        process.stdout.write(value)
       }
     })
-  }
-
-  function onEnd() {
-    if (processedData) {
-      fs.writeFileSync(location, '', { flags: 'w' })
-    }
-  }
-
-  ee.removeListener('data', onData)
-  ee.removeListener('end', onEnd)
-
-  ee.on('data', onData)
-  ee.on('end', onEnd)
-
-  function readlogs() {
-    processedData = false
-
-    fs.createReadStream(location)
-      .pipe(es.split())
-      .pipe(es.parse())
-      .on('data', function(data) {
-        processedData = true
-        if (Array.isArray(data)) {
-          data.forEach(function(op) {
-            ee.emit('data', op)
-          })
-        }
-        else {
-          ee.emit('data', data)
-        }
-      })
-      .on('end', function() {
-        ee.emit('end')
-      })
-  }
-
-  fs.appendFileSync(location, '\n')
-  fs.watch(location, readlogs)
-  readlogs()
+  })
 })
