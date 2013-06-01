@@ -390,9 +390,7 @@ describe('A client', function() {
     }
   )
 
- // TODO: fail for this case
-
- it(
+  it(
     'should report the number of logs sent is the same as the number received',
     function(done) {
 
