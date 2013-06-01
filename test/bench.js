@@ -1,13 +1,67 @@
 
 var Benchmark = require('benchmark')
-var suite = new Benchmark.Suite
+var util = require('util')
+var multilevel = require('multilevel')
+var suite = new Benchmark.Suite()
 var fs = require('fs')
+var net = require('net')
+var format = require('../format')
+var ip = require('ip')
 
 var winston = require('winston')
-winston.add(winston.transports.File, { filename: 'log.log' });
+winston.remove(winston.transports.Console)
 
-var loqui = require('../index').createClient({ local: true })
-var loquiQueued = require('../index').createClient({ queueSize: 100, local: true })
+var CustomLogger = winston.transports.CustomerLogger = function (options) {
+  this.name = 'customLogger'
+  this.level = options.level || 'info'
+}
+
+var origin = {
+  host: ip.address(),
+  pid: process.pid
+}
+
+util.inherits(CustomLogger, winston.Transport)
+
+var db = multilevel.client()
+db.pipe(net.connect(9099)).pipe(db)
+
+var batch = []
+
+function put(obj) {
+
+  var key = client.id + '!' + obj.key
+  var op = {
+    type: 'put',
+    key: key,
+    value: {
+      value: obj.value,
+      method: 'log',
+      origin: origin,
+      timestamp: Date.now()
+    } 
+  }
+
+  db.put(op.key, op.value, function(err) {
+    if (err) {
+      console.log(err)
+    }
+  })
+}
+
+CustomLogger.prototype.log = function () {
+
+  //
+  // Notes: to make this comparison realistic, we add a few requirements
+  // similar to those of found in loqui, for example string formatting,
+  // meta data and a batch function to prep and send the data.
+  //
+  put(format.apply(null, arguments))
+}
+
+
+var loqui = require('../index').createClient()
+var loquiQueued = require('../index').createClient({ queueSize: 100 })
 var log = []
 var i1 = 0, i2 = 0, i3 = 0
 
@@ -30,7 +84,7 @@ suite
   loqui.log('info' + i1++, data)
 })
 .add('Winston', function() {
-  winston.log('info', data + i2++)
+  winston.log('info' + i2++, data)
 })
 .add('Loqui-Queued', function() {
   loquiQueued.log('info' + i3++, data)
@@ -43,8 +97,6 @@ suite
 .on('complete', function() {
   console.log(log)
   console.log('Fastest is ' + this.filter('fastest').pluck('name'))
-  //fs.unlink('./log.log')
-  //fs.unlink('./log.json')
 })
 // run async
 .run({ 'async': true })

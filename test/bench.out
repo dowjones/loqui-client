@@ -1,0 +1,3 @@
+[ 'Loqui x 66,597 ops/sec ±45.47% (28 runs sampled)',
+  'Winston x 17,384 ops/sec ±13.97% (58 runs sampled)',
+  'Loqui-Queued x 104,315 ops/sec ±24.44% (43 runs sampled)' ]

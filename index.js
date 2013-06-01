@@ -1,10 +1,8 @@
-var path = require('path')
 var ip = require('ip')
 var fs = require('fs')
 var deepmerge = require('deepmerge')
 var restream = require('restream')
 var multilevel = require('multilevel')
-var argv = require('optimist').argv
 
 var uuid = require('node-uuid')
 var format = require('./format')
@@ -18,101 +16,94 @@ exports.createClient = function(opts) {
 
   opts = opts || {}
 
-  var writecount = 0
-  var failed = false
-  var db
-
-  var local = opts.local || argv.local
-  var logfile = argv.logfile || opts.logfile
-
-  if (logfile) {
-    logfile = fs.createWriteStream(logfile, { flags: 'a' })
-  }
-
-  opts.queueSize = opts.queueSize || 1
+  opts.queueSize = opts.queueSize
 
   var rate = opts.rate
   var window = opts.window
   var quota = rate
+  var throttling = typeof rate !== 'undefined' && typeof window !== 'undefined'
   var timeStampMS = Date.now()
+
+  var writecount = 0
+  var failed = false
+  var local = opts.local
+  var logfile = opts.logfile
+  var logfilestream
 
   var batch = []
   var batchIndexes = {}
+  var db
 
-  restream.connect(argv)
-    .on('connect', function(connection) {
-      client.connected = true
-      db = multilevel.client()
-      db.pipe(connection).pipe(db)
-    })
-    .on('fail', function() {
-      failed = true
-    })
+  function useFileStream() {
 
-  function writeBatch() {
+    var stream = fs.createWriteStream(logfile, { flags: 'a' })
 
-    var temp = []
-    temp = deepmerge(batch, temp)
+    db = {}
 
-    if (local) {
-      temp.forEach(function(log) {
-        console.log(log)
+    db.batch = function(batch) {
+
+      var temp = []
+
+      for (var i = 0; i < batch.length; i++) {
+        temp[i] = batch[i]
+      }
+
+      batch.length = 0
+
+      stream.write(JSON.stringify(temp) + '\n', function(err) {
+        if (err) { console.log(err) }
+        temp.length = 0
       })
     }
-    
-    if (client.connected) {
-      batch.length = 0
-      db.batch(temp, function(err) {
-        if (err) {
-          console.log(err)
-        }
+
+    db.put = function(key, value, callback) {
+      var s = JSON.stringify({ key: key, value: value })
+      stream.write(s + '\n', function(err) {
+        callback(err)
       })
-    }
-    else if (failed || logfile) {
-      logfile.write(JSON.stringify(temp) + '\n')
-      batch.length = 0
     }
   }
 
-  function queue(obj) {
+  if (logfile) {
+    useFileStream()
+  }
+  else {
 
-    //
-    // prepare the data to be sent
-    //
-    var key = client.id ? [client.id, obj.key].join('!') : obj.key
-    
-    var value = {
-      value: obj.value,
-      method: obj.method,
-      origin: origin,
-      timestamp: Date.now()
-    }
+    restream.connect(opts)
+      .on('connect', function(connection) {
+        if (client.connected) return
 
-    var record = { type: 'put', key: key, value: value }
+        client.connected = true
+        db = multilevel.client()
+        db.pipe(connection).pipe(db)
 
-    if(obj.method === 'log' || obj.method === 'extend') {
-      batch.push(record)
-    }
-    else if (obj.method === 'error') {
-      batch.push(record)
-      writeBatch()
-      return
-    }
-    else if (obj.method === 'counter') {
+        //console.log(batch)
 
-      var n = obj.value.counter
+        var temp = new Array(batch.length)
+        for (var i = 0; i < batch.length; i++) {
+          temp[i] = batch[i]
+        }
 
-      if (batchIndexes[obj.key] && obj.value.method === 'counter') {
-        batch[batchIndexes[obj.key]].value.counter += n
-      }
-      else {
-        batchIndexes[obj.key] = batch.length
-      }
+        batch.length = 0
 
-      batch.push(record)
-    }
+        //console.log('SENDING INITIAL BATCH')
 
-    if (typeof rate !== 'undefined' && typeof window !== 'undefined') {
+        db.batch(temp, function(err) {
+          if (err) {
+            return console.log(err)
+          }
+          temp.length = 0
+        })
+      })
+      .on('fail', function() {
+        useFileStream()
+        db.batch(batch)
+      })
+  }
+
+  function queue(obj, method) {
+
+    if (throttling) {
 
       var current = Date.now()
       var delta = current - timeStampMS
@@ -131,8 +122,77 @@ exports.createClient = function(opts) {
       }
     }
 
+    var write = false
+    var key = client.id + '!' + obj.key
+
+    var op = {
+      type: 'put',
+      key: key,
+      value: {
+        value: obj.value,
+        method: method,
+        origin: origin,
+        timestamp: Date.now()
+      } 
+    }
+
+    if (local) {
+      console.log(op)
+    }
+
+    if (!opts.queueSize && (client.connected || logfile)) {
+      //console.log('PUTTING')
+      return db.put(op.key, op.value, function(err) {
+        if (err) {
+          console.log(err)
+        }
+      })
+    }
+    else if (!opts.queueSize) {
+      //console.log('BATCHING')
+      return batch.push(op)
+    }
+
+    if (method === 'error') {
+      batch.push(op)
+      write = true
+    }
+    else if (method === 'counter') {
+
+      var n = obj.value.counter
+
+      if (batchIndexes[key] && obj.value.method === 'counter') {
+        batch[batchIndexes[key]].value.counter += n
+      }
+      else {
+        batchIndexes[key] = batch.length
+      }
+
+      batch.push(op)
+    }
+    else {
+      batch.push(op)
+    }
+
     if (batch.length === opts.queueSize) {
-      writeBatch()
+      write = true
+    }
+
+    if (write && (client.connected || logfile)) {
+
+      var temp = new Array(batch.length)
+      for (var i = 0; i < batch.length; i++) {
+        temp[i] = batch[i]
+      }
+
+      batch.length = 0
+
+      db.batch(temp, function(err) {
+        if (err) {
+          return console.log(err)
+        }
+        temp.length = 0
+      })
     }
   }
 
@@ -141,33 +201,26 @@ exports.createClient = function(opts) {
   //
 
   var client = function(opts) {
-    client.id = opts.id || uuid.v4()
+    if (opts.id) { client.id = opts.id }
   }
 
+  client.id = opts.id || uuid.v4()
   client.connected = false
 
   client.log = client.info = client.warn = function() {
-    var obj = format.apply(null, arguments)
-    obj.method = 'log'
-    queue(obj)
+    queue(format.apply(null, arguments), 'log')
   }
 
   client.error = function() {
-    var obj = format.apply(null, arguments)
-    obj.method = 'error'
-    queue(obj)
+    queue(format.apply(null, arguments), 'error')
   }
 
   client.counter = function() {
-    var obj = format.apply(null, arguments)
-    obj.method = 'counter'
-    queue(obj)
+    queue(format.apply(null, arguments), 'counter')
   }
 
   client.extend = function() {
-    var obj = format.apply(null, arguments)
-    obj.method = 'extend'
-    queue(obj)
+    queue(format.apply(null, arguments), 'extend')
   }
 
   return client

@@ -5,8 +5,10 @@ var es = require('event-stream')
 var deepmerge = require('deepmerge')
 var path = require('path')
 
-var logfile = path.join(process.cwd(), 'log.json')
+var logfile = path.join(__dirname, 'log.json')
 var defaultArgs = { local: true, logfile: logfile }
+
+console.log(logfile)
 
 describe('A client', function() {
 
@@ -40,8 +42,10 @@ describe('A client', function() {
       client.log('test')
 
       setTimeout(function() {
-        if (String(fs.readFileSync(logfile)).length) {
-          fs.unlink(logfile)
+        var len = String(fs.readFileSync(logfile)).length
+        fs.unlink(logfile)
+
+        if (len) {
           done()
         }
         else {
@@ -68,8 +72,6 @@ describe('A client', function() {
           .pipe(es.parse())
           .on('data', function(data) {
 
-            data = data[0]
-
             if (data.key.indexOf('prefix') === -1) {
               assert.fail('the key does not contain the prefix')
             }
@@ -94,10 +96,13 @@ describe('A client', function() {
 
       setTimeout(function() {
 
-        var data = JSON.parse(fs.readFileSync(logfile))[0]
+        var data = JSON.parse(fs.readFileSync(logfile))
+        fs.unlink(logfile)
 
-        if (data.key.length === 36) {
-          fs.unlink(logfile)
+        var uuidLength = 36
+        var sepLength = 1
+
+        if (data.key.length === uuidLength+uuidLength+sepLength) {
           assert.ok('a unique key was generated')
           done()
         }
@@ -119,10 +124,10 @@ describe('A client', function() {
 
       setTimeout(function() {
 
-        var data = JSON.parse(fs.readFileSync(logfile))[0]
+        var data = JSON.parse(fs.readFileSync(logfile))
+        fs.unlink(logfile)
 
         if (data.value.value === 'Felix has 20 pet squirrels') {
-          fs.unlink(logfile)
           assert.ok('the value did not contain tokens')
           done()
         }
@@ -144,10 +149,10 @@ describe('A client', function() {
 
       setTimeout(function() {
 
-        var data = JSON.parse(fs.readFileSync(logfile))[0]
+        var data = JSON.parse(fs.readFileSync(logfile))
+        fs.unlink(logfile)
 
         if (data.value.value === 'Felix has 20 pet squirrels') {
-          fs.unlink(logfile)
           assert.ok('the value did not contain tokens')
           done()
         }
@@ -169,10 +174,10 @@ describe('A client', function() {
 
       setTimeout(function() {
 
-        var data = JSON.parse(fs.readFileSync(logfile))[0]
+        var data = JSON.parse(fs.readFileSync(logfile))
+        fs.unlink(logfile)
 
         if (data.value.value === 'Isaac has 2 pet cats') {
-          fs.unlink(logfile)
           assert.ok('the value did not contain tokens')
           done()
         }
@@ -194,10 +199,10 @@ describe('A client', function() {
 
       setTimeout(function() {
 
-        var data = JSON.parse(fs.readFileSync(logfile))[0]
+        var data = JSON.parse(fs.readFileSync(logfile))
+        fs.unlink(logfile)
 
-        if (data.key === 'bird') {
-          fs.unlink(logfile)
+        if (data.key.indexOf('bird') > -1) {
           assert.ok('the key is expected')
           done()
         }
@@ -219,7 +224,7 @@ describe('A client', function() {
 
       setTimeout(function() {
 
-        var data = JSON.parse(fs.readFileSync(logfile))[0].value
+        var data = JSON.parse(fs.readFileSync(logfile)).value
 
         if (data.method && data.origin && data.value) {
           fs.unlink(logfile)
