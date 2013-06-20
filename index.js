@@ -1,199 +1,74 @@
-var ip = require('ip')
-var fs = require('fs')
-var deepmerge = require('deepmerge')
-var restream = require('restream')
-var multilevel = require('multilevel')
+var uuid = process.env.NODE_UUID ? require(process.env.NODE_UUID) : require('node-uuid')
+  , format = process.env.FORMAT ? require(process.env.FORMAT) : require('./format')
+  , DbModel = process.env.DB_MODEL ? require(process.env.DB_MODEL) : require('./lib/db_model')
+  , BatchQueue = process.env.BATCH_QUEUE ? require(process.env.BATCH_QUEUE) : require('./lib/batch_queue')
 
-var uuid = require('node-uuid')
-var format = require('./format')
-
-var origin = {
-  host: ip.address(),
-  pid: process.pid
-}
-
+/**
+ * @param {Object} opts
+ *
+ *    queueSize
+ *    rate
+ *    window
+ *    local
+ *    logfile
+ *    id
+ *
+ *    restream options
+ *
+ *    protocol
+ *    servers - [{port:n,host:s}]
+ *    reconnectTime
+ *    connectTimeout
+ *    maxCycles
+ *
+ */
 exports.createClient = function(opts) {
 
   opts = opts || {}
 
-  opts.queueSize = opts.queueSize
-
-  var rate = opts.rate
-  var window = opts.window
-  var quota = rate
-  var throttling = typeof rate !== 'undefined' && typeof window !== 'undefined'
-  var timeStampMS = Date.now()
-
-  var writecount = 0
-  var failed = false
-  var local = opts.local
   var logfile = opts.logfile
-  var logfilestream
 
   var batch = []
-  var batchIndexes = {}
   var db
 
   function useFileStream() {
+    db = DbModel.getDbForFileStream(logfile);
+  }
 
-    var stream = fs.createWriteStream(logfile, { flags: 'a' })
+  function useLoquiServer() {
+    DbModel.getConnection(opts,getConnectCb());
+  }
 
-    db = {}
+  function getConnectCb() {
 
-    db.batch = function(batch) {
-
-      var temp = []
-
-      for (var i = 0; i < batch.length; i++) {
-        temp[i] = batch[i]
+    return function(connection) {
+      if (connection){ 
+        db = DbModel.getDbForConnection(connection, client) || db;
+      } else {
+        useFileStream()
       }
-
-      batch.length = 0
-
-      stream.write(JSON.stringify(temp) + '\n', function(err) {
-        if (err) { console.log(err) }
-        temp.length = 0
-      })
+      db.batch(batch);
     }
 
-    db.put = function(key, value, callback) {
-      var s = JSON.stringify({ key: key, value: value })
-      stream.write(s + '\n', function(err) {
-        callback(err)
-      })
-    }
   }
 
   if (logfile) {
-    useFileStream()
+    useFileStream();
+  } else {
+    useLoquiServer();
   }
-  else {
 
-    restream.connect(opts)
-      .on('connect', function(connection) {
-        if (client.connected) return
-
-        client.connected = true
-        db = multilevel.client()
-        db.pipe(connection).pipe(db)
-
-        //console.log(batch)
-
-        var temp = new Array(batch.length)
-        for (var i = 0; i < batch.length; i++) {
-          temp[i] = batch[i]
-        }
-
-        batch.length = 0
-
-        //console.log('SENDING INITIAL BATCH')
-
-        db.batch(temp, function(err) {
-          if (err) {
-            return console.log(err)
-          }
-          temp.length = 0
-        })
-      })
-      .on('fail', function() {
-        useFileStream()
-        db.batch(batch)
-      })
+  function putDb(key,value,cb){
+    db.put(key,value,cb); 
+  } 
+  function batchDb(batch){
+    db.batch(batch);
   }
+
+  var batchQueue = new BatchQueue(opts,client,batch,putDb,batchDb);
 
   function queue(obj, method) {
-
-    if (throttling) {
-
-      var current = Date.now()
-      var delta = current - timeStampMS
-
-      timeStampMS = current
-      quota += delta * (rate / window)
-
-      if (quota > rate) {
-        quota = rate
-      }
-      if (quota < 1) {
-        return
-      }
-      else {
-        quota -= 1
-      }
-    }
-
-    var write = false
-    var key = client.id + '!' + obj.key
-
-    var op = {
-      type: 'put',
-      key: key,
-      value: {
-        value: obj.value,
-        method: method,
-        origin: origin,
-        timestamp: Date.now()
-      } 
-    }
-
-    if (local) {
-      console.log(op)
-    }
-
-    if (!opts.queueSize && (client.connected || logfile)) {
-      //console.log('PUTTING')
-      return db.put(op.key, op.value, function(err) {
-        if (err) {
-          console.log(err)
-        }
-      })
-    }
-    else if (!opts.queueSize) {
-      //console.log('BATCHING')
-      return batch.push(op)
-    }
-
-    if (method === 'error') {
-      batch.push(op)
-      write = true
-    }
-    else if (method === 'counter') {
-
-      var n = obj.value.counter
-
-      if (batchIndexes[key] && obj.value.method === 'counter') {
-        batch[batchIndexes[key]].value.counter += n
-      }
-      else {
-        batchIndexes[key] = batch.length
-      }
-
-      batch.push(op)
-    }
-    else {
-      batch.push(op)
-    }
-
-    if (batch.length === opts.queueSize) {
-      write = true
-    }
-
-    if (write && (client.connected || logfile)) {
-
-      var temp = new Array(batch.length)
-      for (var i = 0; i < batch.length; i++) {
-        temp[i] = batch[i]
-      }
-
-      batch.length = 0
-
-      db.batch(temp, function(err) {
-        if (err) {
-          return console.log(err)
-        }
-        temp.length = 0
-      })
-    }
+    batchQueue.queue(obj,method);
   }
 
   //

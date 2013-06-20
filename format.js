@@ -5,7 +5,6 @@ var uuid = require('node-uuid');
 // generate a key-value object.
 //
 module.exports = function format() {
-
   var key, value, args;
 
   if (arguments.length === 1) {
