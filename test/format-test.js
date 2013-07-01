@@ -1,5 +1,5 @@
 var should = require('should')
-  , format = require('../format');
+  , format = require('../lib/format');
 
 describe('format testing', function() {
 

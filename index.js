@@ -1,5 +1,5 @@
 var uuid = process.env.NODE_UUID ? require(process.env.NODE_UUID) : require('node-uuid')
-  , format = process.env.FORMAT ? require(process.env.FORMAT) : require('./format')
+  , format = process.env.FORMAT ? require(process.env.FORMAT) : require('./lib/format')
   , DbModel = process.env.DB_MODEL ? require(process.env.DB_MODEL) : require('./lib/db_model')
   , BatchQueue = process.env.BATCH_QUEUE ? require(process.env.BATCH_QUEUE) : require('./lib/batch_queue')
 
