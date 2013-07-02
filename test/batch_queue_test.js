@@ -146,14 +146,14 @@ describe('batch-queue testing', function() {
       var method = 'counter';
 
       batchQueue.queue(obj,method);
-      batchQueue.batchIndexes.should.eql({ 'queue-test-1!test': 0 });
+      batchQueue.batchIndexes.should.eql({});
       batch[0].value.value.counter.should.eql(1);
     });
   });
 
   describe('with queue', function() {
     it('should add counter method to batch', function() {
-      var opts = {local:false, queueSize:1};
+      var opts = {local:false, queueSize:3};
       var batch = [];
       var client = {id:'queue-test-2',connected:true};
       var obj1 = {key:'test',value:{method:'counter',counter:1}};
@@ -167,11 +167,15 @@ describe('batch-queue testing', function() {
       var method = 'counter';
 
       batchQueue.queue(obj1,method);
+
+      batchQueue.batchIndexes.should.eql({ 'queue-test-2!test': 0 });
+
       batchQueue.queue(obj2,method);
 
       batchQueue.batchIndexes.should.eql({ 'queue-test-2!test': 0 });
+
       batch[0].value.value.counter.should.eql(2);
-      batch[1].value.value.counter.should.eql(1);
+
     });
   });
 
