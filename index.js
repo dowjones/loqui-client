@@ -1,7 +1,9 @@
-var uuid = process.env.NODE_UUID ? require(process.env.NODE_UUID) : require('node-uuid')
-  , format = process.env.FORMAT ? require(process.env.FORMAT) : require('./lib/format')
-  , DbModel = process.env.DB_MODEL ? require(process.env.DB_MODEL) : require('./lib/db_model')
-  , BatchQueue = process.env.BATCH_QUEUE ? require(process.env.BATCH_QUEUE) : require('./lib/batch_queue')
+var uuid = require(process.env.NODE_UUID || 'node-uuid')
+  , format = require(process.env.FORMAT || './lib/format')
+  , restream = require(process.env.RESTREAM || 'restream')
+  , FileStreamDbModel = require(process.env.FILESTREAMDBMODEL || './lib/file_stream_db_model')
+  , LoquiClientDbModel = require(process.env.LOQUICLIENTDBMODEL || './lib/loqui_client_db_model')
+  , BatchQueue = require(process.env.BATCH_QUEUE || './lib/batch_queue')
 
 /**
  * @param {Object} opts
@@ -32,24 +34,25 @@ exports.createClient = function(opts) {
   var db
 
   function useFileStream() {
-    db = DbModel.getDbForFileStream(logfile);
+    db = new FileStreamDbModel(logfile);
   }
 
   function useLoquiServer() {
-    DbModel.getConnection(opts,getConnectCb());
+    var connectCb = getConnectCb();
+    restream.connect(opts)
+      .on('connect', connectCb)
+      .on('fail', connectCb)
   }
 
   function getConnectCb() {
-
     return function(connection) {
       if (connection){ 
-        db = DbModel.getDbForConnection(connection, client) || db;
+        db = new LoquiClientDbModel(connection,client);
       } else {
-        useFileStream()
+        useFileStream();
       }
       db.batch(batch);
     }
-
   }
 
   if (logfile) {
@@ -64,8 +67,6 @@ exports.createClient = function(opts) {
   function batchDb(batch){
     db.batch(batch);
   }
-
-  var batchQueue = new BatchQueue(opts,client,batch,putDb,batchDb);
 
   function queue(obj, method) {
     batchQueue.queue(obj,method);
@@ -97,6 +98,8 @@ exports.createClient = function(opts) {
   client.extend = function() {
     queue(format.apply(null, arguments), 'extend')
   }
+
+  var batchQueue = new BatchQueue(opts,client,batch,putDb,batchDb);
 
   return client
 }

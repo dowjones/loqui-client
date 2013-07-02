@@ -1,7 +1,5 @@
 var streamMock = {
-  write: function(){
-    //console.log('fsmock.write')
-  }
+  write: function(s,cb){ cb() }
 };
 
 exports.createWriteStream = function(file,opts){
