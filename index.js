@@ -17,8 +17,8 @@ var uuid = require(process.env.NODE_UUID || 'node-uuid')
  *
  *    restream options
  *
- *    protocol
- *    servers - [{port:n,host:s}]
+ *    protocol: [ 'tcp' | 'tls' ]
+ *    servers - [{port:n,host:s}], [{'port':9099,'host':'localhost'}]
  *    reconnectTime
  *    connectTimeout
  *    maxCycles
@@ -55,17 +55,17 @@ exports.createClient = function(opts) {
     }
   }
 
-  if (logfile) {
-    useFileStream();
-  } else {
+  if (opts.servers) {
     useLoquiServer();
+  } else {
+    useFileStream();
   }
 
   function putDb(key,value,cb){
-    db.put(key,value,cb); 
+    if (db) db.put(key,value,cb);
   } 
   function batchDb(batch){
-    db.batch(batch);
+    if (db) db.batch(batch);
   }
 
   function queue(obj, method) {

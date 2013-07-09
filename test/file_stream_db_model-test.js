@@ -54,6 +54,26 @@ describe('file_stream_db_model testing', function() {
     });
   });
 
+  describe('with batch', function() {
+    it('should handle not having a stream', function() {
+      DbModel = require(moduleUnderTest);
+      var dbModel = new DbModel();
+      var batch = [1,2,3];
+      dbModel.batch(batch);
+      batch.length.should.eql(0);
+    });
+  });
+
+  describe('with put', function() {
+    it('should handle not having a stream', function() {
+      DbModel = require(moduleUnderTest);
+      var dbModel = new DbModel();
+      var key = 'test';
+      var value = 1;
+      dbModel.put(key,value,function(err){});
+    });
+  });
+
   describe('with put', function() {
     it('should write value to stream', function() {
       DbModel = require(moduleUnderTest);

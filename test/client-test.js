@@ -84,6 +84,22 @@ describe('loqui-client testing', function() {
       client.extend('testme');
     });
 
+    it('should call useLoquiServer and create a loqui_dbmodel', function() {
+      process.env.BATCH_QUEUE = './test/fixtures/batchdb_batch_queue_mock';
+      process.env.RESTREAM = './test/fixtures/restream_mock_1';
+      loqui_client = require(moduleUnderTest);
+      var opts = {servers:[{port:9999,host:'127.0.0.1'}]};
+      var client = loqui_client.createClient(opts);
+    });
+
+    it('should call useLoquiServer and create a file dbmodel', function() {
+      process.env.BATCH_QUEUE = './test/fixtures/batchdb_batch_queue_mock';
+      process.env.RESTREAM = './test/fixtures/restream_mock_2';
+      loqui_client = require(moduleUnderTest);
+      var opts = {servers:[{port:9999,host:'127.0.0.1'}]};
+      var client = loqui_client.createClient(opts);
+    });
+
   });
 
 });
