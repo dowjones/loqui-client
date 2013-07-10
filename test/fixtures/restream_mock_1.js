@@ -10,5 +10,6 @@ var streamMock = {
 }
 
 exports.connect = function(opts){
+console.log("HERE4");
   return streamMock;
 };

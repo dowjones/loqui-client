@@ -1,6 +1,6 @@
 var uuid = require(process.env.NODE_UUID || 'node-uuid')
   , format = require(process.env.FORMAT || './lib/format')
-  , restream = require(process.env.RESTREAM || 'restream')
+  , net = require(process.env.NET || './lib/net')
   , FileStreamDbModel = require(process.env.FILESTREAMDBMODEL || './lib/file_stream_db_model')
   , LoquiClientDbModel = require(process.env.LOQUICLIENTDBMODEL || './lib/loqui_client_db_model')
   , BatchQueue = require(process.env.BATCH_QUEUE || './lib/batch_queue')
@@ -15,7 +15,7 @@ var uuid = require(process.env.NODE_UUID || 'node-uuid')
  *    logfile
  *    id
  *
- *    restream options
+ *    connection options
  *
  *    protocol: [ 'tcp' | 'tls' ]
  *    servers - [{port:n,host:s}], [{'port':9099,'host':'localhost'}]
@@ -38,10 +38,7 @@ exports.createClient = function(opts) {
   }
 
   function useLoquiServer() {
-    var connectCb = getConnectCb();
-    restream.connect(opts)
-      .on('connect', connectCb)
-      .on('fail', connectCb)
+    net.connect(opts,getConnectCb());
   }
 
   function getConnectCb() {
