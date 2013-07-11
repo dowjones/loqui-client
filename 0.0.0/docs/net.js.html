@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Template Documentation</title>
+
+<style type="text/css">
+  /******************************
+    Github-like colorscheme
+  ******************************/
+  .pln { color: #000 }  /* plain text */
+
+  @media screen {
+    .str { color: #D14 }  /* string content */
+    .kwd { color: #000; font-weight: bold; }  /* a keyword */
+    .com { color: #998 }  /* a comment */
+    .typ { color: #099 }  /* a type name */
+    .lit { color: #099 }  /* a literal value */
+    /* punctuation, lisp open bracket, lisp close bracket */
+    .pun, .opn, .clo { color: #555 }
+    .tag { color: #008 }  /* a markup tag name */
+    .atn { color: #606 }  /* a markup attribute name */
+    .atv { color: #080 }  /* a markup attribute value */
+    .dec, .var { color: #606 }  /* a declaration; a variable name */
+    .fun { color: red }  /* a function name */
+  }
+
+  /* Use higher contrast and text-weight for printable form. */
+  @media print, projection {
+    .str { color: #D14 }
+    .kwd { color: #000; font-weight: bold }
+    .com { color: #a998aa; font-style: italic }
+    .typ { color: #099; font-weight: bold }
+    .lit { color: #099 }
+    .pun, .opn, .clo { color: #440 }
+    .tag { color: #006; font-weight: bold }
+    .atn { color: #404 }
+    .atv { color: #060 }
+  }
+
+  /* Put a border around prettyprinted code snippets. */
+  pre.prettyprint { padding: 2px; border: 1px solid #888 }
+
+  /* Specify class=linenums on a pre to get line numbering */
+  ol.linenums { margin-top: 0; margin-bottom: 0 } /* IE indents via margin-left */
+  li.L0, li.L1, li.L2, li.L3, li.L5, li.L6, li.L7, li.L8 { list-style-type: none }
+  /* Alternate shading for lines */
+  li.L1, li.L3, li.L5, li.L7, li.L9 { background: #eee }
+
+/* ------------- */
+  body {
+    padding: 50px;
+    font: 14px/1.6 "Helvetica Neue", Helvetica, sans-serif;
+  }
+
+  h1, h2, h3 { color: #444; }
+
+  h1 { margin: 0; font-size: 60px; }
+  h2 { margin-bottom: 0; font-weight: 200; }
+  h3 { font-weight: bold; margin-bottom: 0; }
+  a { color: #4183C4; }
+
+  ul, pre, p { margin-top: 0.3em; }
+
+  .comment { border-bottom: 1px dotted #ddd; padding-bottom: 15px; }
+  .comment h2.title { font-weight: bold; }
+  .comment h3.source { color: #888; font-weight: normal; }
+  .comment.private { opacity: 0.6; }
+  .comment em.private { color: #D14; }
+
+  code.source {
+    width: auto;
+    display: inline-block;
+    border: 0;
+    border-radius: 4px;
+    padding: 20px;
+    xfont: 13px Monaco, monospace;
+    font: 13px 'Bitstream Vera Sans Mono','Courier', monospace;
+    color: black;
+    background-color: #fff;
+    border: 1px solid #eee;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075);
+    -moz-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075);
+  }
+
+  .tags em { font-weight: bold; font-style: normal; }
+
+  #menu { background-color: white; position: fixed; top: 10px; right: 30px; }
+  #menu li { list-style: none; }
+  #menu li.private { opacity: 0.6; }
+
+  #menu li a {
+    display: block;
+    text-decoration: none;
+    padding: 5px 2px;
+    border-bottom: 1px dotted #eee;
+    text-align: right;
+    -webkit-transition: padding 200ms ease-out;
+    -moz-transition: padding 200ms ease-out;
+  }
+
+  #menu li a:hover { padding-right: 15px; }
+</style>
+</head>
+<body>
+
+<section id="content">
+  <h1>lib/net.js</h1>
+
+  <section id="restream" class="comment ">
+    <h2 class="title">
+      restream
+    </h2>
+
+
+
+    <section class="description">
+      
+    </section>
+
+
+    <h3 class="source">Source</h3>
+    <pre><code class="source prettyprint lang-js">var restream = require(process.env.RESTREAM || &#39;restream&#39;)
+  , dns = require(&#39;dns&#39;)
+  , net = require(&#39;net&#39;)
+  , async = require(&#39;async&#39;);
+
+exports.connect = function(opts,connectCb){
+  if (!opts || !opts.servers) return;
+  convertHostNames(opts.servers, function(err,servers){
+    if (err) {
+      console.error(err);
+      return connectCb();
+    }
+    opts.servers = servers;
+    restream.connect(opts)
+      .on(&#39;connect&#39;, connectCb)
+      .on(&#39;fail&#39;, connectCb);
+   });
+}
+
+var convertHostNames = exports.convertHostNames = function(servers,cb){
+  async.map(servers,convertHostName,cb);
+}
+
+var convertHostName = exports.convertHostName = function(server,cb){
+  if (!net.isIP(server.host)){
+    dns.lookup(server.host, function (err, address) {
+      if (err) return cb(err);
+      server.host = address;
+      return cb(null,server);
+    });
+  } else {
+    cb(null,server);
+  }
+}</code></pre>
+  </section>
+</section>
+
+<ul id="menu">
+  <li class=""><a href="#restream">restream</a></li>
+</ul>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prettify/188.0.0/prettify.js"></script>
+<script>
+(function () {
+
+function prettyPrepareCode() {
+  if (!document.querySelectorAll) { return; }
+  var nodes = document.querySelectorAll('pre code');
+  for (var i = 0, l = nodes.length; i < l; i++) {
+    nodes[i].className = 'source prettyprint lang-js';
+  }
+}
+
+prettyPrepareCode();
+prettyPrint();
+
+}())
+</script>
+</body>
+</html>
