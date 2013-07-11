@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+
+var events = require('events')
+var es = require('event-stream')
+var argv = require('optimist').argv
+var JSONSelect = require('JSONSelect')
+
+process.stdin.resume()
+
+process.stdin
+  .pipe(es.split())
+  .pipe(es.parse())
+  .on('data', function(data) {
+    argv._.forEach(function(selector) {
+      var value = JSONSelect.match(selector, data)
+      if (value) {
+        process.stdout.write(value)
+      }
+    })
+  })
+})

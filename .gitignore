@@ -1,0 +1,14 @@
+/.*
+!.gitignore
+/*.log
+/bin
+/lib-cov
+/lib
+/test
+/support
+/images
+/node_modules
+/npm-shrinkwrap.json
+/target
+/package.json
+/README.md
