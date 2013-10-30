@@ -1,6 +1,6 @@
 {
   "name": "loqui-client",
-  "version": "0.0.2",
+  "version": "0.0.3-latest",
   "description": "ERROR: No README.md file found!",
   "main": "index.js",
   "bin": "./bin/client",
